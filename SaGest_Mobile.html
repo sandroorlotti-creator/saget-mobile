@@ -109,6 +109,7 @@ html,body{height:100%;background:var(--bg);color:var(--txt);font-family:-apple-s
 <div id="app">
   <div id="topbar">
     <h1>Sa<span>Gest</span> Mobile</h1>
+    <button id="btn-settings" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:20px;cursor:pointer;padding:4px 8px">⚙️</button>
     <div id="cloud-dot" title="Stato sincronizzazione"></div>
   </div>
   <div id="tabs">
@@ -562,6 +563,11 @@ document.getElementById('tab-scad').addEventListener('click', () => switchTab('s
 document.getElementById('fab').addEventListener('click', openAddModal)
 document.getElementById('modal-overlay').addEventListener('click', closeModal)
 document.getElementById('config-save').addEventListener('click', saveConfig)
+document.getElementById('btn-settings').addEventListener('click', () => {
+  document.getElementById('cfg-url').value = config.url || ''
+  document.getElementById('cfg-key').value = config.key || ''
+  document.getElementById('config').style.display = 'flex'
+})
 
 // Delegazione eventi per pulsanti dinamici
 document.addEventListener('click', function(e) {

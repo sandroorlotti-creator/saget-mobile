@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0a0806"/>
+<title>SaGest Mobile</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0f1117;--bg2:#1a1d27;--bg3:#22263a;--ac:#b85532;--txt:#e8e4f0;
+  --muted:#7a7a9a;--dim:#4a4a6a;--bord:rgba(255,255,255,.07);
+  --green:#34d399;--yellow:#fbbf24;--red:#f87171;--blue:#38bdf8;
+  --purple:#c084fc;--radius:14px;--safe-bottom:env(safe-area-inset-bottom,0px)
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overscroll-behavior:none}
+#app{height:100%;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative}
+
+/* TOPBAR */
+#topbar{padding:16px 18px 12px;background:var(--bg);border-bottom:1px solid var(--bord);display:flex;align-items:center;gap:12;flex-shrink:0}
+#topbar h1{font-size:18px;font-weight:800;letter-spacing:-.3px;flex:1}
+#topbar h1 span{color:var(--ac)}
+#cloud-dot{width:8px;height:8px;border-radius:50%;background:var(--dim);transition:background .3s;flex-shrink:0}
+#cloud-dot.ok{background:var(--green)}
+#cloud-dot.err{background:var(--red)}
+#cloud-dot.sync{background:var(--yellow);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* TABS */
+#tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--bord);flex-shrink:0}
+.tab{flex:1;padding:13px 8px;text-align:center;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:var(--ac);border-bottom-color:var(--ac)}
+
+/* CONTENT */
+#content{flex:1;overflow-y:auto;padding:16px 14px;padding-bottom:calc(80px + var(--safe-bottom))}
+
+/* FAB */
+#fab{position:fixed;bottom:calc(20px + var(--safe-bottom));right:20px;width:56px;height:56px;border-radius:50%;background:var(--ac);color:#fff;font-size:26px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(184,85,50,.5);z-index:100;transition:transform .15s}
+#fab:active{transform:scale(.92)}
+
+/* CARDS */
+.card{background:var(--bg2);border-radius:var(--radius);padding:14px 16px;border:1px solid var(--bord);margin-bottom:10px;cursor:pointer;transition:background .15s}
+.card:active{background:var(--bg3)}
+.card-header{display:flex;align-items:flex-start;gap:12px}
+.card-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.card-title{font-size:14px;font-weight:600;color:var(--txt);line-height:1.3}
+.card-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-top:6px}
+
+/* CALENDAR */
+#cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+#cal-month{font-size:16px;font-weight:700}
+.cal-nav{background:var(--bg2);border:1px solid var(--bord);color:var(--txt);padding:6px 14px;border-radius:8px;cursor:pointer;font-size:16px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:16px}
+.cal-dow{text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0;text-transform:uppercase}
+.cal-day{aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;position:relative;transition:background .15s}
+.cal-day:active{background:var(--bg3)}
+.cal-day.today{background:var(--ac);color:#fff;font-weight:800}
+.cal-day.has-event::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--green)}
+.cal-day.today.has-event::after{background:#fff}
+.cal-day.selected{outline:2px solid var(--ac);outline-offset:1px}
+.cal-day.other-month{color:var(--dim)}
+#day-events{margin-top:4px}
+#day-title{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em}
+
+/* MODAL */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+#modal-overlay.open{opacity:1;pointer-events:all}
+#modal{background:var(--bg2);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:20px 20px calc(24px + var(--safe-bottom));transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:92vh;overflow-y:auto}
+#modal-overlay.open #modal{transform:translateY(0)}
+#modal-handle{width:36px;height:4px;border-radius:2px;background:var(--dim);margin:0 auto 18px}
+#modal-title{font-size:17px;font-weight:800;margin-bottom:18px}
+
+/* FORM */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--bord);color:var(--txt);padding:11px 14px;border-radius:10px;font-size:15px;outline:none;-webkit-appearance:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--ac)}
+.field textarea{resize:vertical;min-height:80px;font-family:inherit}
+.field select option{background:var(--bg2)}
+.btn-row{display:flex;gap:10px;margin-top:6px}
+.btn{flex:1;padding:13px;border-radius:12px;font-size:15px;font-weight:700;border:none;cursor:pointer;transition:opacity .15s}
+.btn:active{opacity:.8}
+.btn-primary{background:var(--ac);color:#fff}
+.btn-ghost{background:var(--bg);color:var(--muted);border:1px solid var(--bord)}
+.btn-danger{background:#f8717120;color:var(--red);border:1px solid #f8717140}
+
+/* CONFIG SCREEN */
+#config{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;padding:40px 20px 30px;overflow-y:auto}
+#config h2{font-size:22px;font-weight:800;margin-bottom:6px}
+#config p{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6}
+#config .steps{font-size:13px;color:var(--muted);line-height:2;margin-bottom:24px;background:var(--bg2);border-radius:12px;padding:16px}
+#config .steps strong{color:var(--txt)}
+#config-save{width:100%;padding:16px;background:var(--ac);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty span{font-size:40px;display:block;margin-bottom:10px}
+.empty p{font-size:14px}
+
+/* TOAST */
+#toast-bar{position:fixed;bottom:calc(90px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#1e2235;color:var(--txt);padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;z-index:400;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.4);pointer-events:none}
+#toast-bar.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <h1>Sa<span>Gest</span> Mobile</h1>
+    <div id="cloud-dot" title="Stato sincronizzazione"></div>
+  </div>
+  <div id="tabs">
+    <div class="tab active" data-tab="agenda" id="tab-agenda">📅 Agenda</div>
+    <div class="tab" data-tab="scadenzario" id="tab-scad">⏰ Scadenzario</div>
+  </div>
+  <div id="content"></div>
+  <button id="fab">+</button>
+</div>
+
+<!-- Modal aggiunta/modifica evento -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-handle"></div>
+    <div id="modal-title">Nuovo Evento</div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Config screen -->
+<div id="config">
+  <h2>⚙️ Configurazione</h2>
+  <p>Inserisci i dati del tuo Firebase Realtime Database per sincronizzare l'agenda con SaGest sul PC.</p>
+  <div class="steps">
+    <strong>Come configurare Firebase (gratuito):</strong><br>
+    1. Vai su <strong>console.firebase.google.com</strong><br>
+    2. Crea un nuovo progetto (es. "SaGest")<br>
+    3. Vai su <strong>Realtime Database</strong> → Crea database<br>
+    4. In <strong>Regole</strong> imposta read/write = true<br>
+    5. Copia l'URL del database qui sotto
+  </div>
+  <div class="field">
+    <label>URL Database Firebase</label>
+    <input id="cfg-url" type="url" placeholder="https://nome-progetto-default-rtdb.firebaseio.com"/>
+  </div>
+  <div class="field">
+    <label>Chiave segreta (stessa inserita in SaGest PC)</label>
+    <input id="cfg-key" type="text" placeholder="es. studio_orlotti_2025"/>
+  </div>
+  <button id="config-save">Salva e connetti</button>
+</div>
+
+<div id="toast-bar"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────
+let eventi = []
+let currentTab = 'agenda'
+let calYear, calMonth
+let selectedDate = null
+let editingId = null
+let config = { url: '', key: '' }
+
+const TODAY = new Date().toISOString().slice(0,10)
+const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
+const MESI_S = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']
+const DOW = ['Lu','Ma','Me','Gi','Ve','Sa','Do']
+const TIPI = ['Sopralluogo','Riunione','Appuntamento','Deposito Pratica','Consegna Elaborati','Telefonata','Scadenza','Altro']
+const TIPO_COLOR = {
+  Sopralluogo:'#38bdf8',Riunione:'#c084fc',Appuntamento:'#fbbf24',
+  'Deposito Pratica':'#fb923c','Consegna Elaborati':'#34d399',
+  Telefonata:'#94a3b8',Scadenza:'#f87171',Altro:'#94a3b8'
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────
+function init() {
+  const d = new Date()
+  calYear = d.getFullYear(); calMonth = d.getMonth()
+  selectedDate = TODAY
+
+  // Carica config da localStorage
+  const saved = localStorage.getItem('sg_config')
+  if (saved) { try { config = JSON.parse(saved) } catch {} }
+
+  if (!config.url || !config.key) {
+    document.getElementById('config').style.display = 'flex'
+    // Pre-compila se presenti
+    document.getElementById('cfg-url').value = config.url || ''
+    document.getElementById('cfg-key').value = config.key || ''
+  } else {
+    document.getElementById('config').style.display = 'none'
+    loadFromCloud()
+  }
+}
+
+function saveConfig() {
+  const url = document.getElementById('cfg-url').value.trim()
+  const key = document.getElementById('cfg-key').value.trim()
+  if (!url || !key) { showToast('⚠️ Compila tutti i campi'); return }
+  config = { url, key }
+  localStorage.setItem('sg_config', JSON.stringify(config))
+  document.getElementById('config').style.display = 'none'
+  loadFromCloud()
+}
+
+// ── FIREBASE REST API ─────────────────────────────────────────────────
+function fbUrl() {
+  return `${config.url.replace(/\/$/,'')}/sagest_${config.key}/eventi.json`
+}
+
+async function loadFromCloud() {
+  setDot('sync')
+  try {
+    const res = await fetch(fbUrl())
+    // 404 = database vuoto (nessun evento ancora salvato dal PC)
+    if (res.status === 404) {
+      eventi = []
+      setDot('ok')
+      render()
+      showToast('☁ Connesso — nessun evento ancora dal PC')
+      return
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    const data = await res.json()
+    // Supporta sia array (salvato da PC) che oggetto {id: evento} (salvato da mobile)
+    if (Array.isArray(data)) {
+      eventi = data
+    } else if (data && typeof data === 'object') {
+      eventi = Object.values(data)
+    } else {
+      eventi = []
+    }
+    setDot('ok')
+    render()
+    showToast('☁ Agenda aggiornata')
+  } catch(e) {
+    setDot('err')
+    const msg = e?.message || String(e)
+    showToast('⚠️ Errore: ' + msg, 6000)
+    // Mostra errore dettagliato a schermo
+    document.getElementById('content').innerHTML = `
+      <div style="background:#f8717120;border:1px solid #f8717140;border-radius:12px;padding:16px;margin-top:10px">
+        <div style="color:#f87171;font-weight:700;margin-bottom:8px">⚠️ Errore connessione cloud</div>
+        <div style="color:#ccc;font-size:12px;word-break:break-all;margin-bottom:12px"><strong>Errore:</strong> ${e?.message||String(e)}</div>
+        <div style="color:#ccc;font-size:12px;word-break:break-all;margin-bottom:12px"><strong>URL tentato:</strong> ${fbUrl()}</div>
+        <button data-action="retry" style="background:#b85532;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🔄 Riprova</button>
+        &nbsp;
+        <button data-action="reconfig" style="background:#333;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">⚙️ Riconfigurazione</button>
+      </div>`
+    render()
+  }
+}
+
+async function saveToCloud() {
+  setDot('sync')
+  try {
+    // Usa PUT con array — stesso formato del PC
+    const res = await fetch(fbUrl(), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(eventi)
+    })
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>'')
+      throw new Error(`HTTP ${res.status} — ${txt}`)
+    }
+    setDot('ok')
+    return true
+  } catch(e) {
+    setDot('err')
+    showToast('⚠️ Salvataggio fallito: ' + (e?.message||String(e)), 5000)
+    return false
+  }
+}
+
+function setDot(s) {
+  const d = document.getElementById('cloud-dot')
+  d.className = s
+}
+
+// ── TABS ───────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab))
+  render()
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────
+function render() {
+  if (currentTab === 'agenda') renderAgenda()
+  else renderScadenzario()
+}
+
+function renderAgenda() {
+  const el = document.getElementById('content')
+  const firstDay = new Date(calYear, calMonth, 1)
+  const lastDay = new Date(calYear, calMonth + 1, 0)
+  // Giorni con eventi in questo mese
+  const daysWithEvents = new Set(
+    eventi.filter(e => e.data && e.data.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}`))
+          .map(e => parseInt(e.data.split('-')[2]))
+  )
+
+  // Costruisci griglia
+  let startDow = (firstDay.getDay() + 6) % 7 // 0=lun
+  let cells = ''
+  // intestazioni
+  DOW.forEach(d => { cells += `<div class="cal-dow">${d}</div>` })
+  // celle vuote prima del primo
+  for (let i = 0; i < startDow; i++) cells += '<div></div>'
+  // giorni
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const isToday = dateStr === TODAY
+    const isSel = dateStr === selectedDate
+    const hasEv = daysWithEvents.has(d)
+    cells += `<div class="cal-day${isToday?' today':''}${hasEv?' has-event':''}${isSel&&!isToday?' selected':''}" 
+      onclick="selectDate('${dateStr}')">${d}</div>`
+  }
+
+  // Eventi del giorno selezionato
+  const dayEventi = eventi.filter(e => e.data === selectedDate)
+    .sort((a,b) => (a.ora||'99:99').localeCompare(b.ora||'99:99'))
+
+  const selD = selectedDate ? new Date(selectedDate + 'T12:00') : null
+  const selLabel = selD ? `${selD.getDate()} ${MESI[selD.getMonth()]} ${selD.getFullYear()}` : ''
+
+  let evHtml = ''
+  if (dayEventi.length === 0) {
+    evHtml = '<div class="empty"><span>📭</span><p>Nessun evento in questa giornata</p></div>'
+  } else {
+    dayEventi.forEach(e => {
+      const col = TIPO_COLOR[e.tipo] || '#94a3b8'
+      const done = e.completato ? 'opacity:.5;' : ''
+      evHtml += `
+        <div class="card" style="${done}" onclick="openEditModal('${e.id}')">
+          <div class="card-header">
+            <div class="card-dot" style="background:${col}"></div>
+            <div style="flex:1">
+              <div class="card-title">${esc(e.titolo||'(senza titolo)')}</div>
+              <div class="card-sub">${e.ora ? '🕐 ' + e.ora : ''}${e.durata ? ' · ' + e.durata + 'min' : ''}${e.note ? ' · ' + esc(e.note) : ''}</div>
+              <span class="badge" style="background:${col}20;color:${col}">${e.tipo||'Altro'}</span>
+              ${e.completato ? '<span class="badge" style="background:#34d39920;color:#34d399;margin-left:4px">✓ Fatto</span>' : ''}
+            </div>
+          </div>
+        </div>`
+    })
+  }
+
+  el.innerHTML = `
+    <div id="cal-header">
+      <button class="cal-nav" onclick="prevMonth()">‹</button>
+      <div id="cal-month">${MESI[calMonth]} ${calYear}</div>
+      <button class="cal-nav" onclick="nextMonth()">›</button>
+    </div>
+    <div class="cal-grid">${cells}</div>
+    <div id="day-events">
+      <div id="day-title">${selLabel}</div>
+      ${evHtml}
+    </div>`
+}
+
+function renderScadenzario() {
+  const el = document.getElementById('content')
+  const scadenze = eventi
+    .filter(e => e.tipo === 'Scadenza' && !e.completato)
+    .sort((a,b) => a.data.localeCompare(b.data))
+
+  const scadute = scadenze.filter(e => e.data < TODAY)
+  const oggi_dom = scadenze.filter(e => e.data === TODAY || e.data === domani())
+  const future = scadenze.filter(e => e.data > domani())
+
+  let html = ''
+
+  if (scadenze.length === 0) {
+    html = '<div class="empty"><span>🎉</span><p>Nessuna scadenza pendente</p></div>'
+  } else {
+    const section = (title, items, color) => {
+      if (!items.length) return ''
+      let s = `<div style="font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px;padding-left:4px">${title}</div>`
+      items.forEach(e => {
+        const d = daysLeft(e.data)
+        const label = d < 0 ? `scaduta ${Math.abs(d)} gg fa` : d === 0 ? 'OGGI' : d === 1 ? 'domani' : `tra ${d} giorni`
+        s += `<div class="card" onclick="openEditModal('${e.id}')">
+          <div class="card-header">
+            <div class="card-dot" style="background:${color}"></div>
+            <div style="flex:1">
+              <div class="card-title">${esc(e.titolo||'(senza titolo)')}</div>
+              <div class="card-sub">📅 ${fmtDate(e.data)} · ${label}</div>
+              ${e.note ? `<div class="card-sub" style="margin-top:3px">${esc(e.note)}</div>` : ''}
+            </div>
+          </div>
+        </div>`
+      })
+      return s
+    }
+    html += section('⚠️ Scadute', scadute, '#f87171')
+    html += section('🔥 Oggi e domani', oggi_dom, '#fbbf24')
+    html += section('📋 Prossime', future, '#38bdf8')
+  }
+
+  // Anche le scadenze completate di recente (ultimi 7gg)
+  const completate = eventi
+    .filter(e => e.tipo === 'Scadenza' && e.completato)
+    .sort((a,b) => b.data.localeCompare(a.data))
+    .slice(0, 5)
+  if (completate.length) {
+    html += `<div style="font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 8px;padding-left:4px">✓ Completate recenti</div>`
+    completate.forEach(e => {
+      html += `<div class="card" style="opacity:.5" onclick="openEditModal('${e.id}')">
+        <div class="card-header">
+          <div class="card-dot" style="background:var(--green)"></div>
+          <div style="flex:1">
+            <div class="card-title" style="text-decoration:line-through">${esc(e.titolo||'')}</div>
+            <div class="card-sub">📅 ${fmtDate(e.data)}</div>
+          </div>
+        </div>
+      </div>`
+    })
+  }
+
+  el.innerHTML = html
+}
+
+// ── MODAL ──────────────────────────────────────────────────────────────
+function openAddModal() {
+  editingId = null
+  const defaultDate = (currentTab === 'scadenzario') ? TODAY : (selectedDate || TODAY)
+  const defaultTipo = currentTab === 'scadenzario' ? 'Scadenza' : 'Appuntamento'
+  document.getElementById('modal-title').textContent = '➕ Nuovo Evento'
+  document.getElementById('modal-body').innerHTML = formHtml({
+    titolo:'', tipo: defaultTipo, data: defaultDate, ora:'', durata:'', note:'', completato: false
+  })
+  openModal()
+}
+
+function openEditModal(id) {
+  const ev = eventi.find(e => e.id === id)
+  if (!ev) return
+  editingId = id
+  document.getElementById('modal-title').textContent = '✏️ Modifica Evento'
+  document.getElementById('modal-body').innerHTML = formHtml(ev) +
+    `<button class="btn btn-danger" onclick="deleteEvento('${id}')" style="width:100%;margin-top:8px">🗑 Elimina evento</button>`
+  openModal()
+}
+
+function formHtml(ev) {
+  const tipiOpts = TIPI.map(t =>
+    `<option value="${t}"${t===ev.tipo?' selected':''}>${t}</option>`
+  ).join('')
+  return `
+    <div class="field"><label>Titolo *</label>
+      <input id="f-titolo" type="text" value="${esc(ev.titolo||'')}" placeholder="Descrizione evento..."/></div>
+    <div class="field"><label>Tipo</label>
+      <select id="f-tipo">${tipiOpts}</select></div>
+    <div class="field"><label>Data *</label>
+      <input id="f-data" type="date" value="${ev.data||''}"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>Ora</label>
+        <input id="f-ora" type="time" value="${ev.ora||''}"/></div>
+      <div class="field"><label>Durata (min)</label>
+        <input id="f-durata" type="number" value="${ev.durata||''}" placeholder="60"/></div>
+    </div>
+    <div class="field"><label>Note</label>
+      <textarea id="f-note" placeholder="Note aggiuntive...">${esc(ev.note||'')}</textarea></div>
+    <div class="field" style="display:flex;align-items:center;gap:10px">
+      <input id="f-completato" type="checkbox" style="width:20px;height:20px;flex-shrink:0"${ev.completato?' checked':''}/>
+      <label style="font-size:14px;color:var(--txt);text-transform:none;letter-spacing:0">Completato</label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-primary" onclick="saveEvento()">Salva</button>
+    </div>`
+}
+
+async function saveEvento() {
+  const titolo = document.getElementById('f-titolo').value.trim()
+  const data = document.getElementById('f-data').value
+  if (!titolo) { showToast('⚠️ Il titolo è obbligatorio'); return }
+  if (!data) { showToast('⚠️ La data è obbligatoria'); return }
+
+  const ev = {
+    id: editingId || uid(),
+    titolo,
+    tipo: document.getElementById('f-tipo').value,
+    data,
+    ora: document.getElementById('f-ora').value || '',
+    durata: parseInt(document.getElementById('f-durata').value) || 0,
+    note: document.getElementById('f-note').value.trim(),
+    completato: document.getElementById('f-completato').checked,
+  }
+
+  if (editingId) {
+    eventi = eventi.map(e => e.id === editingId ? ev : e)
+  } else {
+    eventi.push(ev)
+  }
+
+  selectedDate = data
+  closeModal()
+  render()
+  const ok = await saveToCloud()
+  if (ok) showToast(editingId ? '✓ Evento aggiornato' : '✓ Evento aggiunto')
+}
+
+async function deleteEvento(id) {
+  if (!confirm('Eliminare questo evento?')) return
+  eventi = eventi.filter(e => e.id !== id)
+  closeModal()
+  render()
+  const ok = await saveToCloud()
+  if (ok) showToast('🗑 Evento eliminato')
+}
+
+function openModal() {
+  document.getElementById('modal-overlay').classList.add('open')
+  setTimeout(() => document.getElementById('f-titolo')?.focus(), 350)
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return
+  document.getElementById('modal-overlay').classList.remove('open')
+}
+
+// ── CALENDAR NAV ───────────────────────────────────────────────────────
+function prevMonth() {
+  calMonth--; if (calMonth < 0) { calMonth = 11; calYear-- }
+  render()
+}
+function nextMonth() {
+  calMonth++; if (calMonth > 11) { calMonth = 0; calYear++ }
+  render()
+}
+function selectDate(d) {
+  selectedDate = d; render()
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────
+function uid() { return Math.random().toString(36).slice(2,10) }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function domani() { return new Date(Date.now()+864e5).toISOString().slice(0,10) }
+function daysLeft(d) { return Math.ceil((new Date(d+'T12:00') - new Date()) / 86400000) }
+function fmtDate(d) {
+  if (!d) return ''
+  const [y,m,g] = d.split('-')
+  return `${g} ${MESI_S[parseInt(m)-1]} ${y}`
+}
+function showToast(msg, duration) {
+  const t = document.getElementById('toast-bar')
+  t.textContent = msg; t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), duration || 2500)
+}
+
+// ── REFRESH AUTOMATICO ogni 60 secondi ────────────────────────────────
+setInterval(() => { if (config.url && config.key) loadFromCloud() }, 60000)
+
+// ── START ──────────────────────────────────────────────────────────────
+// Collega tutti gli event listener statici (compatibile con Google Drive CSP)
+document.addEventListener('DOMContentLoaded', function() {}, false)
+document.getElementById('tab-agenda').addEventListener('click', () => switchTab('agenda'))
+document.getElementById('tab-scad').addEventListener('click', () => switchTab('scadenzario'))
+document.getElementById('fab').addEventListener('click', openAddModal)
+document.getElementById('modal-overlay').addEventListener('click', closeModal)
+document.getElementById('config-save').addEventListener('click', saveConfig)
+
+// Delegazione eventi per pulsanti dinamici
+document.addEventListener('click', function(e) {
+  if (e.target.dataset.action === 'retry') loadFromCloud()
+  if (e.target.dataset.action === 'reconfig') document.getElementById('config').style.display='flex'
+})
+
+init()
+</script>
+</body>
+</html>
